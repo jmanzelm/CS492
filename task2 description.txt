@@ -1,0 +1,22 @@
+Solving task 2 with condition variables, relied on our decision
+to prohibit the 0 and the 4 position philosophers from eating at the same time.
+By preventing these two from being able to both be at the table at the same time deadlock becomes impossible.
+Having 4 philosophers and 5 forks allows two non-adajacent philosophers to eat concurrently as well.
+We went about preventing one philosopher from eating by initalizing a mutex (cond) that both 0 and 4 share. 
+This is essentially representative of their spot at the table but not literally as they dont share the same forks completely.
+Then when either 0 or 4 enter their thread they have a specific if statement 
+if (v == 0 || v == 4){
+	pthread_cond_signal(&convar);
+	pthread_cond_wait(&convar, &cond);
+      }
+in which calls for a signal to have any waiting 0 or 4 threads to proceed 
+( at the initalization neither 0 or 4 are waiting)
+and then calls for the specific diner to wait for the signal. Convar being our condition variable and cond being our mutex for the condition.
+So if 0 begins he calls the signal which does nothing and then begins waiting.
+He is now the diner that is not at the table.
+If 1, 2 or 3 begin they proceed without issue as stated before with there being only 4 diners with 5 forks.
+If 4 begins he proceeds similiarly to 0 except when he signals he releases 0 and then enters his wait. He is not at the table.
+This allows 4 and 0 to be at the table at various times but will generally always end with them taking turns eating at the end. As 4 can only eat if 0 is not at the table and 0 can only eat if 4 is not.
+This arbitration removes deadlock but in an continuous loop does not prevent starvation as 0 or 4 can be prevented to free each other depending on if they are prevented from eating because of
+philosopher one continuously eating or 3 doing the same.
+This can also be done in a sort of round robin where the last eater always sits out, this results in the same starvation but fairly starves rather then forcing it on 0 or 4.
