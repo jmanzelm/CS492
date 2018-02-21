@@ -39,7 +39,6 @@ void *diner(int *i)
   int eating = 0;
   printf("I'm diner %d\n",*i);
   v = *i;
-  pthread_mutex_lock(&cond);
   while (eating < 5){
     printf("%d is thinking\n", v);
     sleep( v/2);
@@ -56,7 +55,6 @@ void *diner(int *i)
     printf("%d is done eating\n", v);
     pthread_mutex_unlock(&fork_mutex[v]);
     pthread_mutex_unlock(&fork_mutex[(v+1)%NUMP]);  
-    pthread_mutex_unlock(&cond);
     }
 	pthread_exit(NULL);
 }
