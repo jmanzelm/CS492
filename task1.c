@@ -5,9 +5,8 @@
 #include <errno.h>
 
 #define NUMP 5
-
+pthread_mutex_t single_eater;
 pthread_mutex_t fork_mutex[NUMP];
-int eat[NUMP] = {0};
 
 int main()  
 {
@@ -17,6 +16,7 @@ int main()
   void *diner();
   for (i=0;i<NUMP;i++)
     pthread_mutex_init(&fork_mutex[i], NULL);
+  pthread_mutex_init(&single_eater, NULL);
 
   for (i=0;i<NUMP;i++){
     dn[i] = i;
@@ -27,22 +27,10 @@ int main()
 
   for (i=0;i<NUMP;i++)
     pthread_mutex_destroy(&fork_mutex[i]);
+  pthread_mutex_destroy(&single_eater);
   
   pthread_exit(0);
 
-}
-
-void waiting() {
-  int sum = 0;
-  while(1) {
-    sum = 0;
-    for (int i; i<NUMP; ++i) {
-      sum += eat[i];
-    }
-    if (sum == 0) {
-      return;
-    }
-  }
 }
 
 void *diner(int *i)
@@ -55,8 +43,7 @@ void *diner(int *i)
     printf("%d is thinking\n", v);
     sleep( v/2);
     printf("%d is hungry\n", v);
-    waiting();
-    eat[v] = 1;
+    pthread_mutex_lock(&single_eater);
     pthread_mutex_lock(&fork_mutex[v]);
     pthread_mutex_lock(&fork_mutex[(v+1)%NUMP]);
     printf("%d is eating\n", v);
@@ -65,7 +52,7 @@ void *diner(int *i)
     printf("%d is done eating\n", v);
     pthread_mutex_unlock(&fork_mutex[v]);
     pthread_mutex_unlock(&fork_mutex[(v+1)%NUMP]);
-    eat[v] = 0;
+    pthread_mutex_unlock(&single_eater);
   }
   pthread_exit(NULL);
 }
