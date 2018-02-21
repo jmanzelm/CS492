@@ -6,7 +6,9 @@
 
 #define NUMP 5
 
+pthread_mutex_t cond;
 pthread_mutex_t fork_mutex[NUMP];
+pthread_cond_t convar;
 
 int main()  
 {
@@ -37,10 +39,15 @@ void *diner(int *i)
   int eating = 0;
   printf("I'm diner %d\n",*i);
   v = *i;
-  while (eating < 5) {
+  pthread_mutex_lock(&cond);
+  while (eating < 5){
     printf("%d is thinking\n", v);
     sleep( v/2);
     printf("%d is hungry\n", v);
+    if (v == 0 || v == 4){
+	pthread_cond_signal(&convar);
+	pthread_cond_wait(&convar, &cond);
+      }
     pthread_mutex_lock(&fork_mutex[v]);
     pthread_mutex_lock(&fork_mutex[(v+1)%NUMP]);
     printf("%d is eating\n", v);
@@ -48,7 +55,8 @@ void *diner(int *i)
     sleep(1);
     printf("%d is done eating\n", v);
     pthread_mutex_unlock(&fork_mutex[v]);
-    pthread_mutex_unlock(&fork_mutex[(v+1)%NUMP]);
-  }
-  pthread_exit(NULL);
+    pthread_mutex_unlock(&fork_mutex[(v+1)%NUMP]);  
+    pthread_mutex_unlock(&cond);
+    }
+	pthread_exit(NULL);
 }
