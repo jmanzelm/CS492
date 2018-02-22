@@ -1,3 +1,13 @@
+Task 1:
+
+The solution for task 1 involved locking a mutex before the fork pickup call and
+unlocking it after the putdown call. This allows only one philosopher to attempt to
+attempt to eat at a single time. This prevents deadlocks, because there is no way
+for any other philosopher to attempt to grab any currently picked up forks, which
+could leave them waiting forever.
+
+Task 2:
+
 Solving task 2 with condition variables, relied on our decision
 to prohibit the 0 and the 4 position philosophers from eating at the same time.
 By preventing these two from being able to both be at the table at the same time deadlock becomes impossible.

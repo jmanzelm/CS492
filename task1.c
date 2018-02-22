@@ -1,3 +1,7 @@
+/******************************************************************
+* I pledge my honor that I have abided by the Stevens Honor System.
+* Jacob Manzelmann, Gavin Burke
+******************************************************************/
 #include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
