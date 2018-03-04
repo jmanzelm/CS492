@@ -7,14 +7,45 @@
 #include <sstream>
 #include <queue>
 #include <pthread.h>
+#include <random>
+#include <sys/time.h>
 
 using namespace std;
 
-void first_come_first_serve(int num_producers, int num_consumers, int num_products, int Qsize, int seed) {
+typedef struct {
+	int id;
+	int time;
+	int life;
+} product;
+
+int size;
+int max_products;
+queue<product*> Q = new queue<product*>;
+
+product* create_product() {
+	product* new_product = new product;
+	new_product->id = random();
+	gettimeofday(&(new_product->time), NULL);
+	new_product->life = random() % 1024;
+}
+
+inline void delete_product(product* prod) {
+	delete prod;
+}
+
+void first_come_first_serve_P(int seed) {
 
 }
 
-void round_robin(int num_producers, int num_consumers, int num_products, int Qsize, int quantum, int seed) {
+void first_come_first_serve_C(int seed) {
+
+}
+
+void round_robin_P(int quantum, int seed) {
+
+}
+
+void round_robin_C(int quantum, int seed) {
 
 }
 
@@ -76,6 +107,9 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	iss.clear();
+
+	size = Qsize;
+	max_products = num_products;
 
 	if (Atype) {
 		round_robin(num_producers, num_consumers, num_products, Qsize, quantum, seed);
