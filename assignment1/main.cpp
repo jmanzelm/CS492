@@ -69,8 +69,8 @@ void* first_come_first_serve_P(void* arguments) {
 		}
 
 		product* p = create_product();
-		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		Q.push(p);
+		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		++prods_made;
 
 		pthread_mutex_unlock(&permissions);
@@ -97,6 +97,7 @@ void* first_come_first_serve_C(void* arguments) {
 		product* p = Q.front();
 		Q.pop();
 		++prods_used;
+		cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
 
 		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&permissions);
@@ -104,7 +105,7 @@ void* first_come_first_serve_C(void* arguments) {
 		for (int i = 0; i<p->life; ++i) {
 			fibbo(10);
 		}
-		cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
+
 		delete_product(p);
 		usleep(100000);
 		pthread_mutex_lock(&permissions);
@@ -127,8 +128,8 @@ void* round_robin_P(void* arguments) {
 		}
 
 		product* p = create_product();
-		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		Q.push(p);
+		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		++prods_made;
 
 		pthread_mutex_unlock(&permissions);
@@ -156,18 +157,19 @@ void* round_robin_C(void* arguments) {
 		Q.pop();
 
 		pthread_cond_signal(&cond);
-		pthread_mutex_unlock(&permissions);
 		if (p->life <= args->quantum) {
+			cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
+			pthread_mutex_unlock(&permissions);
 			for (int i = 0; i<p->life; ++i) {
 				fibbo(10);
 			}
 			++prods_used;
-			cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
 			delete_product(p);
 			usleep(100000);
 			pthread_mutex_lock(&permissions);
 		}
 		else {
+			pthread_mutex_unlock(&permissions);
 			for (int i = 0; i<args->quantum; ++i) {
 				fibbo(10);
 			}
@@ -251,22 +253,26 @@ int main(int argc, char* argv[]) {
 	int nc[num_consumers];
 
 	if (Atype) {
+		rr_args* p_args[num_producers];
+		rr_args* c_args[num_consumers];
 		pthread_mutex_init(&permissions, NULL);
 		pthread_cond_init(&cond, NULL);
 		for (int i=0;i<num_producers;i++){
 			np[i] = i;
-			rr_args temp;
-			temp.quantum = quantum;
-			temp.num = i;
-			pthread_create(&producer_thread[i],NULL,round_robin_P,(void*)&temp);
+			rr_args* temp = new rr_args;
+			temp->quantum = quantum;
+			temp->num = i;
+			p_args[i] = temp;
+			pthread_create(&producer_thread[i],NULL,round_robin_P,(void*)temp);
   		}
 
 		for (int i=0;i<num_consumers;i++){
 			nc[i] = i;
-			rr_args temp;
-			temp.quantum = quantum;
-			temp.num = i;
-			pthread_create(&consumer_thread[i],NULL,round_robin_C,(void*)&temp);
+			rr_args* temp = new rr_args;
+			temp->quantum = quantum;
+			temp->num = i;
+			c_args[i] = temp;
+			pthread_create(&consumer_thread[i],NULL,round_robin_C,(void*)temp);
   		}
 
   		for (int i=0;i<num_producers;i++) 
@@ -274,25 +280,36 @@ int main(int argc, char* argv[]) {
 
   		for (int i=0;i<num_consumers;i++)
     		pthread_join(consumer_thread[i],NULL);
+
 		pthread_mutex_destroy(&permissions);
 		pthread_cond_destroy(&cond);
+		for (int i=0; i<num_producers; ++i) {
+			delete p_args[i];
+		}
+		for (int i=0; i<num_consumers; ++i) {
+			delete c_args[i];
+		}
 		return 0;
 	}
 
+	fcfs_args* p_args[num_producers];
+	fcfs_args* c_args[num_consumers];
 	pthread_mutex_init(&permissions, NULL);
 	pthread_cond_init(&cond, NULL);
 	for (int i=0;i<num_producers;i++){
 		np[i] = i;
-		fcfs_args temp;
-		temp.num = i;
-		pthread_create(&producer_thread[i],NULL,first_come_first_serve_P,(void*)&temp);
+		fcfs_args* temp = new fcfs_args;
+		temp->num = i;
+		p_args[i] = temp;
+		pthread_create(&producer_thread[i],NULL,first_come_first_serve_P,(void*)temp);
 	}
 
 	for (int i=0;i<num_consumers;i++){
 		nc[i] = i;
-		fcfs_args temp;
-		temp.num = i;
-		pthread_create(&consumer_thread[i],NULL,first_come_first_serve_C,(void*)&temp);
+		fcfs_args* temp = new fcfs_args;
+		temp->num = i;
+		c_args[i] = temp;
+		pthread_create(&consumer_thread[i],NULL,first_come_first_serve_C,(void*)temp);
 	}
 
 	for (int i=0;i<num_producers;i++) 
@@ -300,8 +317,15 @@ int main(int argc, char* argv[]) {
 
 	for (int i=0;i<num_consumers;i++)
 		pthread_join(consumer_thread[i],NULL);
+
 	pthread_mutex_destroy(&permissions);
 	pthread_cond_destroy(&cond);
+	for (int i=0; i<num_producers; ++i) {
+		delete p_args[i];
+	}
+	for (int i=0; i<num_consumers; ++i) {
+		delete c_args[i];
+	}
 	return 0;
 }
 
