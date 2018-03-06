@@ -16,6 +16,14 @@
 
 using namespace std;
 
+/*
+struct for products
+id: random product id
+life: determines time of product consumption
+wait: total product wait time
+t1: time of product creation
+t3: time product is first added to the queue
+*/
 typedef struct {
 	int id;
 	int life;
@@ -24,10 +32,19 @@ typedef struct {
 	double t3;
 } product;
 
+/*
+struct for first come first serve arguments
+num: the number of the producer/consumer
+*/
 typedef struct {
 	int num;
 } fcfs_args;
 
+/*
+struct for round robin arguments
+quantum: the quantum value
+num: the number of the producer/consumer
+*/
 typedef struct {
 	int quantum;
 	int num;
@@ -36,14 +53,20 @@ typedef struct {
 int max_products;
 int prods_made = 0;
 int prods_used = 0;
+
+// queue and max size
 int size;
 queue<product*> Q;
+
+// vectors for product timing
 vector<double> turn_around;
 vector<double> wait;
 
 pthread_mutex_t permissions;
 pthread_cond_t cond;
 
+
+// creates a new product
 product* create_product() {
 	product* new_product = new product;
 	new_product->id = random();
@@ -53,10 +76,12 @@ product* create_product() {
 	new_product->life = random() % 1024;
 }
 
+// deletes a product
 inline void delete_product(product* prod) {
 	delete prod;
 }
 
+// a fibonacci algorithm for timing products
 int fibbo(int num) {
 	if (num < 2) {
 		return 1;
@@ -64,13 +89,16 @@ int fibbo(int num) {
 	return fibbo(num-1) + fibbo(num-2);
 }
 
+// the producer function for first come first serve
 void* first_come_first_serve_P(void* arguments) {
 	fcfs_args* args = (fcfs_args*)arguments;
 	pthread_mutex_lock(&permissions);
 	while(1) {
+		// stop producing if the necessary amount of products have been created
 		if (prods_made == max_products) {
 			break;
 		}
+		// wait until the queue is not full to create a product
 		if(Q.size() == size) {
 			pthread_cond_signal(&cond);
 			pthread_cond_wait(&cond, &permissions);
@@ -78,13 +106,17 @@ void* first_come_first_serve_P(void* arguments) {
 		}
 
 		product* p = create_product();
+
+		// get time when the product is added to the queue
 		timeval temp;
 		gettimeofday(&temp, NULL);
 		p->t3 = temp.tv_sec+(temp.tv_usec/1000000.0);
+
 		Q.push(p);
 		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		++prods_made;
 
+		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&permissions);
 		usleep(100000);
 		pthread_mutex_lock(&permissions);
@@ -155,8 +187,10 @@ void* round_robin_P(void* arguments) {
 		gettimeofday(&temp, NULL);
 		p->t3 = temp.tv_sec+(temp.tv_usec/1000000.0);
 		Q.push(p);
+		++prods_made;
 		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 
+		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&permissions);
 		usleep(100000);
 		pthread_mutex_lock(&permissions);
