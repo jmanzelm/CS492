@@ -125,7 +125,7 @@ void* first_come_first_serve_P(void* arguments) {
 	pthread_mutex_unlock(&permissions);
 }
 
-// 
+// first come first serve for consumers
 void* first_come_first_serve_C(void* arguments) {
 	fcfs_args* args = (fcfs_args*)arguments;
 	pthread_mutex_lock(&permissions);
@@ -142,6 +142,7 @@ void* first_come_first_serve_C(void* arguments) {
 		product* p = Q.front();
 		Q.pop();
 
+		// get wait time
 		timeval temp;
 		gettimeofday(&temp, NULL);
 		double t4 = temp.tv_sec+(temp.tv_usec/1000000.0);
@@ -170,6 +171,7 @@ void* first_come_first_serve_C(void* arguments) {
 	pthread_mutex_unlock(&permissions);
 }
 
+// round robin for producers
 void* round_robin_P(void* arguments) {
 	rr_args* args = (rr_args*)arguments;
 	pthread_mutex_lock(&permissions);
@@ -200,6 +202,7 @@ void* round_robin_P(void* arguments) {
 	pthread_mutex_unlock(&permissions);
 }
 
+// round robin for consumers
 void* round_robin_C(void* arguments) {
 	rr_args* args = (rr_args*)arguments;
 	pthread_mutex_lock(&permissions);
@@ -216,6 +219,7 @@ void* round_robin_C(void* arguments) {
 		product* p = Q.front();
 		Q.pop();
 
+		// increment wait time
 		timeval temp;
 		gettimeofday(&temp, NULL);
 		double t4 = temp.tv_sec+(temp.tv_usec/1000000.0);
@@ -223,6 +227,7 @@ void* round_robin_C(void* arguments) {
 		p->wait += t;
 
 		pthread_cond_signal(&cond);
+		// enters if the life left is less than or equal to the quantum
 		if (p->life <= args->quantum) {
 			wait.push_back(p->wait);
 			cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
@@ -232,6 +237,7 @@ void* round_robin_C(void* arguments) {
 			}
 			++prods_used;
 
+			// gets total process run time
 			gettimeofday(&temp, NULL);
 			double t2 = temp.tv_sec+(temp.tv_usec/1000000.0);
 			double t0 = t2 - (p->t1);
@@ -325,7 +331,9 @@ int main(int argc, char* argv[]) {
 	int np[num_producers];
 	int nc[num_consumers];
 
+	// enters if type is round robin
 	if (Atype) {
+		// rr main
 		rr_args* p_args[num_producers];
 		rr_args* c_args[num_consumers];
 		pthread_mutex_init(&permissions, NULL);
@@ -414,6 +422,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
+	// fcfs main
 	fcfs_args* p_args[num_producers];
 	fcfs_args* c_args[num_consumers];
 	pthread_mutex_init(&permissions, NULL);
