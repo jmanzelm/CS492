@@ -8,6 +8,7 @@
 #include <queue>
 #include <pthread.h>
 #include <random>
+#include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -16,7 +17,10 @@ using namespace std;
 typedef struct {
 	int id;
 	timeval time;
+	timeval wait;
 	int life;
+	double t1;
+	double t3;
 } product;
 
 typedef struct {
@@ -41,6 +45,7 @@ product* create_product() {
 	product* new_product = new product;
 	new_product->id = random();
 	gettimeofday(&(new_product->time), NULL);
+	new_product->t1 = (new_product->time).tv_sec+((new_product->time).tv_usec/1000000.0);
 	new_product->life = random() % 1024;
 }
 
@@ -70,6 +75,8 @@ void* first_come_first_serve_P(void* arguments) {
 
 		product* p = create_product();
 		Q.push(p);
+		gettimeofday(&(p->wait), NULL);
+		p->t3 = (p->wait).tv_sec+((p->wait).tv_usec/1000000.0);	
 		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		++prods_made;
 
@@ -96,9 +103,18 @@ void* first_come_first_serve_C(void* arguments) {
 
 		product* p = Q.front();
 		Q.pop();
+		gettimeofday(&(p->wait), NULL);
+		double t4=(p->wait).tv_sec+((p->time).tv_usec/1000000.0);
+		double t;
+		t = t4 - (p->t3);
+		cout << "Product " << p->id << " was waiting for " << t << " seconds." << endl;
 		++prods_used;
 		cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
-
+		gettimeofday(&(p->time), NULL);
+		double t2=(p->time).tv_sec+((p->time).tv_usec/1000000.0);
+		double t0;
+		t0 = t2 - (p->t1);
+		cout << "Product " << p->id << " was processed for " << t0 << " seconds." << endl;
 		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&permissions);
 
@@ -129,6 +145,8 @@ void* round_robin_P(void* arguments) {
 
 		product* p = create_product();
 		Q.push(p);
+		gettimeofday(&(p->wait), NULL);
+		p->t3 = (p->wait).tv_sec+((p->wait).tv_usec/1000000.0);	
 		cout << "Producer " << args->num << " has produced product " << p->id << endl;
 		++prods_made;
 
@@ -155,7 +173,11 @@ void* round_robin_C(void* arguments) {
 
 		product* p = Q.front();
 		Q.pop();
-
+		gettimeofday(&(p->wait), NULL);
+		double t4=(p->wait).tv_sec+((p->time).tv_usec/1000000.0);
+		double t;
+		t = t4 - (p->t3);
+		cout << "Product " << p->id << " was waiting for " << t << " seconds." << endl;
 		pthread_cond_signal(&cond);
 		if (p->life <= args->quantum) {
 			cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
@@ -164,6 +186,12 @@ void* round_robin_C(void* arguments) {
 				fibbo(10);
 			}
 			++prods_used;
+			cout << "Consumer " << args->num << " has consumed product " << p->id << endl;
+			gettimeofday(&(p->time), NULL);
+			double t2=(p->time).tv_sec+((p->time).tv_usec/1000000.0);
+			double t0;
+			t0 = t2 - (p->t1);
+			cout << "Product " << p->id << " was processed for " << t0 << " seconds." << endl;
 			delete_product(p);
 			usleep(100000);
 			pthread_mutex_lock(&permissions);
