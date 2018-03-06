@@ -125,6 +125,7 @@ void* first_come_first_serve_P(void* arguments) {
 	pthread_mutex_unlock(&permissions);
 }
 
+// 
 void* first_come_first_serve_C(void* arguments) {
 	fcfs_args* args = (fcfs_args*)arguments;
 	pthread_mutex_lock(&permissions);
@@ -491,7 +492,7 @@ int main(int argc, char* argv[]) {
 	w_average /= num_products;
 
 	cout << "Total processing time: " << total_end-total_start << "s" << endl;
-	cout << "Producer throughput: " << (num_producers/(producer_end-total_start))* 60 << "prods/m" << endl;
+	cout << "Producer throughput: " << (num_products/(producer_end-total_start))* 60 << "prods/m" << endl;
 	cout << "Consumer throughput: " << (num_products/(total_end-consumer_start))* 60 << "prods/m" << endl;
 	cout << "Turn-around Min: " << t_min << ", Max: " << t_max << ", Average: " << t_average << endl;
 	cout << "Wait Min: " << w_min << ", Max: " << w_max << ", Average: " << w_average << endl;
