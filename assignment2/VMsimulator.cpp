@@ -11,65 +11,196 @@
 #include <tuple>
 #include <fstream>
 #include <math.h>
+#include <queue>
+#include <limits>
 
 using namespace std;
 
-tuple<bool, int>** page_tables;
-long counter = 0;
+vector<vector<tuple<bool, int> > > page_tables;
+int counter = 1;
 
 int FIFO(int page_size, bool prepaging, string ptrace) {
 	ifstream ifs (ptrace);
 	int faults = 0;
-	if(prepaging) {
-		string process_temp1, location_temp1, process_temp2, location_temp2;
-		while (getline(ifs, process_temp1, ' ')) {
-			getline(ifs, location_temp1);
-			if (getline(ifs, process_temp2, ' ')) {
-				getline(ifs, location_temp2);
+	vector<queue<int> > QS;
 
+	int k = 0;
+	queue<int> TQ;
+	for (int i=0; i<page_tables.size(); ++i) {
+		QS.push_back(TQ);
+		k = 0;
+		while (get<0>(page_tables[i][k]) && k < page_tables[i].size()) {
+			QS[i].push(k);
+			++k;
+		}
+	}
+
+	if(prepaging) {
+		string process_temp, location_temp, process_temp2, location_temp2;
+		int proc, proc2, loc, loc2, pop_loc, temp_counter;
+		bool good = false;
+		while (getline(ifs, process_temp, ' ')) {
+			getline(ifs, location_temp);
+			good = false;
+			proc = stoi(process_temp);
+			loc = stoi(location_temp) - 1;
+			
+			if (!(get<0>(page_tables[proc][(loc) / page_size]))) {
+				temp_counter = counter;
+				while (getline(ifs, process_temp2, ' ')) {
+					++counter;
+					getline(ifs, location_temp2);
+					proc2 = stoi(process_temp2);
+					loc2 = stoi(location_temp2) - 1;
+
+					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) ) {
+						good = true;
+						break;
+					}
+					else {
+						page_tables[proc2][(loc2) / page_size] = tuple<bool, int>(true, counter);
+					}
+				}
+
+				pop_loc	= QS[proc].front();
+				QS[proc].pop();
+				page_tables[proc][pop_loc] = tuple<bool, int>(false, get<1>(page_tables[proc][pop_loc]));
+				QS[proc].push((loc) / page_size);
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, temp_counter);
+
+				if (good) {
+					pop_loc	= QS[proc2].front();
+					QS[proc2].pop();
+					page_tables[proc2][pop_loc] = tuple<bool, int>(false, get<1>(page_tables[proc2][pop_loc]));
+					QS[proc2].push((loc2) / page_size);
+					page_tables[proc2][(loc2) / page_size] = tuple<bool, int>(true, counter);
+
+					++faults;
+				}
+				++faults;
 			}
 			else {
-				// code if odd number of requests during prepaging
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
 			}
-
+			++counter;
 		}
 	}
 	else {
 		string process_temp, location_temp;
+		int proc, loc, pop_loc;
 		while (getline(ifs, process_temp, ' ')) {
 			getline(ifs, location_temp);
+			proc = stoi(process_temp);
+			loc = stoi(location_temp) - 1;
 
+			if (!(get<0>(page_tables[proc][(loc) / page_size]))) {
+				pop_loc	= QS[proc].front();
+				QS[proc].pop();
+				page_tables[proc][pop_loc] = tuple<bool, int>(false, get<1>(page_tables[proc][pop_loc]));
+				QS[proc].push((loc) / page_size);
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
+
+				++faults;
+			}
+			else {
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
+			}
+			++counter;
 		}
 	}
-
 	return faults;
 }
 
 int LRU(int page_size, bool prepaging, string ptrace) {
 	ifstream ifs (ptrace);
 	int faults = 0;
-	if(prepaging) {
-		string process_temp1, location_temp1, process_temp2, location_temp2;
-		while (getline(ifs, process_temp1, ' ')) {
-			getline(ifs, location_temp1);
-			if (getline(ifs, process_temp2, ' ')) {
-				getline(ifs, location_temp2);
 
+	if(prepaging) {
+		string process_temp, location_temp, process_temp2, location_temp2;
+		int proc, proc2, loc, loc2, temp_counter, oldest_time, oldest_index;
+		bool good = false;
+		while (getline(ifs, process_temp, ' ')) {
+			getline(ifs, location_temp);
+			good = false;
+			proc = stoi(process_temp);
+			loc = stoi(location_temp) - 1;
+			
+			if (!(get<0>(page_tables[proc][(loc) / page_size]))) {
+				temp_counter = counter;
+				while (getline(ifs, process_temp2, ' ')) {
+					++counter;
+
+					getline(ifs, location_temp2);
+					proc2 = stoi(process_temp2);
+					loc2 = stoi(location_temp2) - 1;
+
+					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) ) {
+						good = true;
+						break;
+					}
+					else {
+						page_tables[proc2][(loc2) / page_size] = tuple<bool, int>(true, counter);
+					}
+				}
+
+				oldest_time = numeric_limits<int>::max();
+				for (int i=0; i<page_tables[proc].size(); ++i) {
+					if (get<0>(page_tables[proc][i]) && get<1>(page_tables[proc][i]) < oldest_time) {
+						oldest_time = get<1>(page_tables[proc][(loc) / page_size]);
+						oldest_index = i;
+					}
+				}
+				page_tables[proc][oldest_index] = tuple<bool,int>(false, get<1>(page_tables[proc][oldest_index]));
+				page_tables[proc][(loc) / page_size] = tuple<bool,int>(true, temp_counter);
+
+				if (good) {
+					oldest_time = numeric_limits<int>::max();
+					for (int i=0; i<page_tables[proc2].size(); ++i) {
+						if (get<0>(page_tables[proc2][i]) && get<1>(page_tables[proc2][i]) < oldest_time) {
+							oldest_time = get<1>(page_tables[proc2][(loc2) / page_size]);
+							oldest_index = i;
+						}
+					}
+					page_tables[proc2][oldest_index] = tuple<bool,int>(false, get<1>(page_tables[proc2][oldest_index]));
+					page_tables[proc2][(loc2) / page_size] = tuple<bool,int>(true, counter);
+
+					++faults;
+				}
+				++faults;
 			}
 			else {
-				// code if odd number of requests during prepaging
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
 			}
-
+			++counter;
 		}
 	}
 	else {
 		string process_temp, location_temp;
+		int proc, loc, oldest_time, oldest_index = 0;
 		while (getline(ifs, process_temp, ' ')) {
 			getline(ifs, location_temp);
+			proc = stoi(process_temp);
+			loc = stoi(location_temp) - 1;
 
+			if (!(get<0>(page_tables[proc][(loc) / page_size]))) {
+				oldest_time = numeric_limits<int>::max();
+				for (int i=0; i<page_tables[proc].size(); ++i) {
+					if (get<0>(page_tables[proc][i]) && get<1>(page_tables[proc][i]) < oldest_time) {
+						oldest_time = get<1>(page_tables[proc][(loc) / page_size]);
+						oldest_index = i;
+					}
+				}
+				page_tables[proc][oldest_index] = tuple<bool,int>(false, get<1>(page_tables[proc][oldest_index]));
+				page_tables[proc][(loc) / page_size] = tuple<bool,int>(true, counter);
+
+				++faults;
+			}
+			else {
+				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
+			}
+			++counter;
 		}
 	}
-
 	return faults;
 }
 
@@ -181,25 +312,28 @@ int main(int argc, char** argv) {
 		sum += list_vector[i];
 	}
 
-	page_tables = new tuple<bool, int>*[list_vector.size()];
 	int size, allocated;
 	for (int i=0; i<list_vector.size(); ++i) {
 		size = ceil((double)list_vector[i]/page_size);
-		allocated = 512 / list_vector.size();
-		page_tables[i] = new tuple<bool, int>[size];
+		allocated = (512 / list_vector.size()) / page_size;
+
+		vector<tuple<bool, int> > inner_vec;
+
 		if (allocated > size) {
-			for (int j=allocated; j<size; ++j) {
-				page_tables[i][j] = tuple<bool, int> (true, 0);
+			for (int j=0; j<size; ++j) {
+				inner_vec.push_back(tuple<bool, int>(true, 0));
 			}
 		}
 		else {
 			for (int j=0; j<allocated; ++j) {
-				page_tables[i][j] = tuple<bool, int> (true, 0);
+				inner_vec.push_back(tuple<bool, int>(true, 0));
 			}
 			for (int j=allocated; j<size; ++j) {
-				page_tables[i][j] = tuple<bool, int> (false, 0);
+				inner_vec.push_back(tuple<bool, int>(false, 0));
 			}
 		}
+
+		page_tables.push_back(inner_vec);
 	}
 
 	//run code
@@ -215,11 +349,6 @@ int main(int argc, char** argv) {
 	}
 
 	cout << "Number of page faults: " << faults << endl;
-
-	for (int i=0; i<10; ++i) {
-		delete page_tables[i];
-	}
-	delete page_tables;
 
 	return 0;
 }
