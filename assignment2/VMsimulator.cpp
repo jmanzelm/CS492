@@ -53,7 +53,7 @@ int FIFO(int page_size, bool prepaging, string ptrace) {
 					proc2 = stoi(process_temp2);
 					loc2 = stoi(location_temp2) - 1;
 
-					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) ) {
+					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) && (proc != proc2 || loc != loc2)) {
 						good = true;
 						break;
 					}
@@ -134,7 +134,7 @@ int LRU(int page_size, bool prepaging, string ptrace) {
 					proc2 = stoi(process_temp2);
 					loc2 = stoi(location_temp2) - 1;
 
-					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) ) {
+					if (!(get<0>(page_tables[proc2][(loc2) / page_size])) && (proc != proc2 || loc != loc2)) {
 						good = true;
 						break;
 					}
