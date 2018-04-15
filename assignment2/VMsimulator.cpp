@@ -216,7 +216,7 @@ int clock(int page_size, bool prepaging, string ptrace) {
 			ref[i].push_back(get<0>(page_tables[i][k]));
 		}
 	}
-	int[] clock = new int[ref.size()];
+	int* clock = new int[ref.size()];
 	for (int x=0; x<ref.size(); ++x){
 		clock[x] = 0;
 	}
@@ -244,10 +244,11 @@ int clock(int page_size, bool prepaging, string ptrace) {
 						break;
 					}
 					else {
+						ref[proc2][(loc2) / page_size] = true;
 						page_tables[proc2][(loc2) / page_size] = tuple<bool, int>(true, counter);
 					}
 				}
-				while(ref[proc][clock[proc]]){
+				while(ref[proc][clock[proc]] || !(get<0>(page_tables[proc][clock[proc]]))){
 					ref[proc][clock[proc]] = false;
 					if(clock[proc] == page_tables[proc].size()){
 						clock[proc] = 0;
@@ -255,25 +256,31 @@ int clock(int page_size, bool prepaging, string ptrace) {
 					else{
 						++clock[proc];
 					}
+				}
 				page_tables[proc][clock[proc]] = tuple<bool,int>(false, get<1>(page_tables[proc][clock[proc]]));
 				page_tables[proc][(loc) / page_size] = tuple<bool,int>(true, counter);
+
+				++clock[proc];
 				
 				if (good) {
-					while(ref[proc2][clock[proc2]]){
+					while(ref[proc2][clock[proc2]] || !(get<0>(page_tables[proc2][clock[proc2]]))){
 						ref[proc2][clock[proc2]] = false;
 						if(clock[proc2] == page_tables[proc2].size()){
 							clock[proc2] = 0;
-					}
+						}
 						else{
 							++clock[proc2];
+						}
 					}
 					page_tables[proc2][clock[proc2]] = tuple<bool,int>(false, get<1>(page_tables[proc2][clock[proc2]]));
 					page_tables[proc2][(loc2) / page_size] = tuple<bool,int>(true, counter);
+					++clock[proc2];
 					++faults;
 				}
 				++faults;
 			}
 			else {
+				ref[proc][(loc) / page_size] = true;
 				page_tables[proc][(loc) / page_size] = tuple<bool, int>(true, counter);
 			}
 			++counter;
@@ -288,7 +295,7 @@ int clock(int page_size, bool prepaging, string ptrace) {
 			loc = stoi(location_temp) - 1;
 
 			if (!(get<0>(page_tables[proc][(loc) / page_size]))) {
-				while(ref[proc][clock[proc]]){
+				while(ref[proc][clock[proc]] || !(get<0>(page_tables[proc][clock[proc]]))){
 					ref[proc][clock[proc]] = false;
 					if(clock[proc] == page_tables[proc].size()){
 						clock[proc] = 0;
@@ -299,6 +306,7 @@ int clock(int page_size, bool prepaging, string ptrace) {
 				}
 				page_tables[proc][clock[proc]] = tuple<bool,int>(false, get<1>(page_tables[proc][clock[proc]]));
 				page_tables[proc][(loc) / page_size] = tuple<bool,int>(true, counter);
+				++clock[proc];
 				++faults;
 			}
 			else {
