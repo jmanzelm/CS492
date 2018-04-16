@@ -15,7 +15,7 @@ CPPFLAGS+= -I $(INCPATH)
 
 
 all: $(OBJ)
-	g++ $(OBJ) -o $(NAME) -std=c++11
+	g++ -std=c++11 $(OBJ) -o $(NAME)
 
 clean:
 	-$(RM) *~
