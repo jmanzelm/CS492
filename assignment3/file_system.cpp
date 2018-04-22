@@ -11,6 +11,54 @@
 
 using namespace std;
 
+// list of memory locations in the disk_list allocated for a certain file
+typedef struct {
+	// id of block in the disk_list
+	// block_id = (disk_list index) * block_size
+	long block_id;
+	file_list* next;
+} file_list;
+
+// I thought doubly linked would be better for this
+typedef struct {
+	// smallest block in node
+	int min;
+	//largest block in node
+	int max;
+	bool used;
+	disk_list* next;
+	disk_list* prev;
+} disk_list;
+
+typedef struct {
+	// true if a file, false if a directory
+	bool file;
+	string name;
+	// list of memory locations if it is a file
+	file_list* memory;
+	// below only used if file
+	int size;
+	// I was looking at the chrono library for creating timestamps:
+	// http://en.cppreference.com/w/cpp/chrono
+	time_t timestamp;
+	// vector of pointers to all other nodes
+	// is empty if file or empty directory
+	vector<tree*> branches;
+} tree;
+
+// the root directory for the system
+tree* root;
+
+// the current directory
+// will point to a piece of the root directory, so modifying it will change root
+tree* cur_dir;
+
+// path to current directory using the names of each directory
+vector<string> path;
+
+// says what memory locations are in use
+disk_list* disk;
+
 int main(int argc, char** argv) {
 	int disk_size, block_size;
 	string file_list, dir_list;
