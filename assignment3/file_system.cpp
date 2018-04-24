@@ -8,34 +8,30 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <chrono>
+#include <ctime>
+#include <regex>
+#include <math.h>
 
 using namespace std;
 
-// list of memory locations in the disk_list allocated for a certain file
-typedef struct {
-	// id of block in the disk_list
-	// block_id = (disk_list index) * block_size
-	long block_id;
-	file_list* next;
-} file_list;
-
 // I thought doubly linked would be better for this
-typedef struct {
+typedef struct d{
 	// smallest block in node
 	int min;
 	//largest block in node
 	int max;
 	bool used;
-	disk_list* next;
-	disk_list* prev;
+	d* next;
+	d* prev;
 } disk_list;
 
-typedef struct {
+typedef struct tree{
 	// true if a file, false if a directory
 	bool file;
 	string name;
 	// list of memory locations if it is a file
-	file_list* memory;
+	vector<long> memory;
 	// below only used if file
 	int size;
 	// I was looking at the chrono library for creating timestamps:
@@ -82,7 +78,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	iss.clear();
-	ifs.close();
 
 	iss.str(argv[2]);
 	if (!(iss >> dir_list)) {
@@ -96,7 +91,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	iss.clear();
-	ifs2.close();
 
 	iss.str(argv[3]);
 	if (!(iss >> disk_size) || disk_size < 1) {
@@ -112,5 +106,163 @@ int main(int argc, char** argv) {
 	}
 	iss.clear();
 
+	vector<long> fake;
+
+	root = new tree;
+	root->file = false;
+	root->name = "/";
+	root->memory = fake;
+	root->size = 0;
+	root->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
+
+	cur_dir = root;
+
+	disk = new disk_list;
+	disk->min = 0;
+	disk->max = disk_size - 1;
+	disk->used = false;
+	disk->next = NULL;
+	disk->prev = NULL;
+
+	string line;
+	string dir;
+	int pos;
+	bool found = false;
+	getline(ifs2, line);
+	while (getline(ifs2, line)) {
+		line.erase(0,2);
+		while (pos = line.find("/") != string::npos) {
+			dir = line.substr(0, line.find("/"));
+			found = false;
+			for (int i=0; i<cur_dir->branches.size(); ++i) {
+				if (cur_dir->branches[i]->name == dir) {
+					cur_dir = cur_dir->branches[i];
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				tree* temp = new tree;
+				temp->file = false;
+				temp->name = dir;
+				temp->memory = fake;
+				temp->size = 0;
+				temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
+				
+				cur_dir->branches.push_back(temp);
+				cur_dir = cur_dir->branches[cur_dir->branches.size() - 1];
+			}
+
+			line.erase(0, pos+1);
+		}
+
+		tree* temp = new tree;
+		temp->file = false;
+		temp->name = line;
+		temp->memory = fake;
+		temp->size = 0;
+		temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
+		
+		cur_dir->branches.push_back(temp);
+		cur_dir = root;
+	}
+
+	int file_size;
+	while (getline(ifs, line)) {
+		// erase duplicate spaces
+		for(int i=0; i<line.length(); i++) {
+			if(line[i]==' ' && line[i+1]==' ') {
+				line.erase(i,1);	
+				--i;
+			}
+		}
+
+		// erase up until size
+		for (int i=0; i<7; ++i) {
+			pos = line.find(" ");
+			line.erase(0, pos+1);
+		}
+
+		// get size
+		pos = line.find(" ");
+		file_size = (int)ceil((double)stoi(line.substr(0, pos)) / block_size);
+		line.erase(0, pos+1);
+
+		// erase up until path
+		pos = line.find("./");
+		line.erase(0, pos+2);
+
+		while (pos = line.find("/") != string::npos) {
+			dir = line.substr(0, line.find("/"));
+			found = false;
+			for (int i=0; i<cur_dir->branches.size(); ++i) {
+				if (cur_dir->branches[i]->name == dir) {
+					cur_dir = cur_dir->branches[i];
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				cerr << "Improper file setup." << endl;
+				return 1;
+			}
+
+			line.erase(0, pos+1);
+		}
+
+		tree* temp = new tree;
+		temp->file = true;
+		temp->name = line;
+		temp->size = file_size;
+		temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
+
+		disk_list* TD_list = disk;
+		disk_list* t;
+		int t_max;
+		vector<long> locations;
+		while (TD_list != NULL) {
+			if (TD_list->used == false) {
+
+				if (TD_list->max - TD_list->min + 1 < file_size) {
+					TD_list->used = true;
+					file_size -= TD_list->max - TD_list->min + 1;
+					locations.push_back(TD_list->min * block_size);
+				}
+				else {
+					t = TD_list->next;
+					t_max = TD_list->max;
+
+					TD_list->max = TD_list->min + file_size - 1;
+					TD_list->used = true;
+
+					if (TD_list->max != t_max) {
+						disk_list* ND_block = new disk_list;
+						ND_block->min = TD_list->max + 1;
+						ND_block->max = t_max;
+						ND_block->used = false;
+						ND_block->next = t;
+						ND_block->prev = TD_list;
+						TD_list->next = ND_block;
+						t->prev = ND_block;
+					}
+
+					locations.push_back(TD_list->min * block_size);
+					break;
+				}
+			}
+
+			TD_list = TD_list->next;
+		}
+
+		temp->memory = locations;
+
+		cur_dir->branches.push_back(temp);
+		cur_dir = root;
+	}
+
+	ifs.close();
+	ifs2.close();
 	return 0;
 }
