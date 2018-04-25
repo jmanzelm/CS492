@@ -55,6 +55,130 @@ vector<string> path;
 // says what memory locations are in use
 disk_list* disk;
 
+void cd(string new_dir){
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name == new_dir) {
+			cur_dir = cur_dir->branches[i];
+			break;
+		}
+	}
+	cerr << "Error: No such directory " << new_dir << endl;	
+}
+
+void cdparent(){
+	if(cur_dir == root){
+		break;
+	}
+	cur_dir = cur_dir->prev;
+}
+
+void ls(){
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		cout << cur_dir->branches[i]->name << " ";
+	}
+}
+
+void mkdir(string new_dir){
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name == new_dir) {
+			cerr << "Error: Directory " << new_dir << " already exists" << endl;
+			break;
+		}
+	}
+	tree* temp = new tree;
+	temp->file = false;
+	temp->name = new_dir;
+	temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());	
+	cur_dir->branches.push_back(temp);
+}
+
+void create(string new_file){
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name == new_file) {
+			cerr << "Error: File " << new_file << " already exists" << endl;
+			break;
+		}
+	}	
+	tree* temp = new tree;
+	temp->file = true;
+	temp->name = new_file;
+	temp->size = 0;
+	temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());	
+	cur_dir->branches.push_back(temp);
+}
+
+void append(string file_name, int byte_size, disk_list disk){
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name != file_name) {
+			cerr << "Error: File " << file_name << " does not exist" << endl;
+			break;
+		}
+		else{
+		temp->size = file_size + byte_size;
+
+		disk_list* TD_list = disk;
+		disk_list* t;
+		int t_max;
+		vector<long> locations;
+		while (TD_list != NULL) {
+			if (TD_list->used == false) {
+
+				if (TD_list->max - TD_list->min + 1 < file_size) {
+					TD_list->used = true;
+					file_size -= TD_list->max - TD_list->min + 1;
+					locations.push_back(TD_list->min * block_size);
+				}
+				else {
+					t = TD_list->next;
+					t_max = TD_list->max;
+
+					TD_list->max = TD_list->min + file_size - 1;
+					TD_list->used = true;
+
+					if (TD_list->max != t_max) {
+						disk_list* ND_block = new disk_list;
+						ND_block->min = TD_list->max + 1;
+						ND_block->max = t_max;
+						ND_block->used = false;
+						ND_block->next = t;
+						ND_block->prev = TD_list;
+						TD_list->next = ND_block;
+						t->prev = ND_block;
+					}
+
+					locations.push_back(TD_list->min * block_size);
+					break;
+				}
+			}
+
+			TD_list = TD_list->next;
+		}
+		temp->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());	
+		temp->memory = locations;
+		}
+	}
+}
+
+void remove(){
+
+}
+
+void delete(string file_name){
+	int location = -1;
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name == file_name){
+			int location = i;
+		}
+	}
+	if (location = -1){
+		cerr << "Error: File " << file_name << " does not exist" << endl;
+		break;
+	}
+
+	cur_dir->branches.erase(i);
+	cur_dir->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());	
+}
+
 int main(int argc, char** argv) {
 	int disk_size, block_size;
 	string file_list, dir_list;
