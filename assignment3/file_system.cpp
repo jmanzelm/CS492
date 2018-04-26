@@ -353,16 +353,113 @@ void delete_node(tree* node, int disk_size, int block_size){
 
 }
 
+//Breadth First Search of the root directory - Prints the traversal containing only directories
 void dir_tree() {
+	queue<tree> Q;
+	vector<tree> children;
+	string path = "";
 
+	Q.push(root);
+
+	while(!Q.empty()){
+		if(file == false){
+			tree dir = Q.front();
+			path += dir->name + " ";
+
+			Q.pop();
+
+			for (int i = 0; i < dir->branches.size(); ++i){
+				Q.push(dir->branches[i])
+			}
+		}
+		//skip if file
+		else{
+			tree dir = Q.front();
+
+			Q.pop();
+
+			for (int i = 0; i < dir->branches.size(); ++i){
+				Q.push(dir->branches[i])
+			}
+		}
+
+	}
+	cout << path << endl;
 }
 
+//Prints every file's attributes in the root directory
 void print_files() {
+	queue<tree> Q;
+	vector<tree> children;
+	vector<string> file_att;
+	string attributes = "";
 
+	Q.push(root);
+
+	while(!Q.empty()){
+		// If the node is actually a directory
+		if(file == false){
+			tree dir = Q.front();
+
+			Q.pop();
+
+			for (int i = 0; i < dir->branches.size(); ++i){
+				Q.push(dir->branches[i])
+			}
+		}
+		else{
+			tree dir = Q.front();
+			string memoryloc = "";
+			for(int j = 0; j < dir->memory.size(); ++j){
+				memoryloc += dir->memory[j] + " ";
+			}
+			attributes = "FileName: " + dir->name + ", Memory Locations: " + memoryloc + ", File Size: " + dir->size + ", Time " + timestamp;
+			file_att.push_back(attributes);
+
+			Q.pop();
+
+			for (int i = 0; i < dir->branches.size(); ++i){
+				Q.push(dir->branches[i])
+			}
+		}
+
+	}
+	for(int x = 0; x < file_att.size(); ++x){
+		cout << file_att[x];
+	}
 }
 
 void print_disk() {
-
+	disk_list* TD_list = disk;
+	vector<bool> bools;
+	int counter = 0;
+	int temp = 0;
+	int frag = 0;
+	while (TD_list !=NULL){
+		if (TD_list->used == true){
+			bools.push_back(true);
+			TD_list = TD_list->next;
+		}
+		else{
+			bools.push_back(false);
+			TD_list = TD_list->next;
+		}
+	}
+	for(i = 0; i < bools.size(); ++i){
+		while(bools[i] = true){
+			temp = counter;
+			++counter;
+			cout << "In use: " + temp +"-" + counter;
+		}
+		cout << "In use: " + temp +"-" + counter;
+		while(bools[i] = false){
+			temp = counter;
+			++counter;
+			frag = frag + (counter - temp) + 1;
+		}
+		cout << "Free: " + temp +"-" + counter;
+	}
+	cout << "fragmentation: " + frag " bytes";
 }
 
 void delete_tree(tree* t) {
