@@ -60,7 +60,7 @@ void change_dir(string new_dir){
 		if (cur_dir->branches[i]->name == new_dir) {
 			cur_dir = cur_dir->branches[i];
 			path.push_back(cur_dir->name);
-			break;
+			return;
 		}
 	}
 	cerr << "Error: No such directory " << new_dir << endl;	
@@ -72,7 +72,7 @@ void change_dir_parent(){
 	}
 	cur_dir = root;
 	path.pop_back();
-	for (int i=0; i<path.size(); ++i) {
+	for (int i=0; i<path.size() - 1; ++i) {
 		for (int j=0; j<cur_dir->branches.size(); ++j) {
 			if (cur_dir->branches[j]->name == path[i]) {
 				cur_dir = cur_dir->branches[j];
@@ -92,7 +92,7 @@ void make_dir(string new_dir){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		if (cur_dir->branches[i]->name == new_dir) {
 			cerr << "Error: Directory " << new_dir << " already exists" << endl;
-			break;
+			return;
 		}
 	}
 	tree* temp = new tree;
@@ -106,7 +106,7 @@ void create_file(string new_file){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		if (cur_dir->branches[i]->name == new_file) {
 			cerr << "Error: File " << new_file << " already exists" << endl;
-			break;
+			return;
 		}
 	}	
 	tree* temp = new tree;
@@ -236,24 +236,121 @@ void append_file(tree* file, int file_size, int block_size){
 	file->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
 }
 
-void remove_file(tree* file, int file_size, int block_size){
+void remove_file(tree* file, int file_size, int disk_size, int block_size){
+	disk_list* TD_list = disk;
+	disk_list* t;
+	int location;
 
+	for (int i=0; i<file_size; ++i) {
+		TD_list = disk;
+		location = (file->memory[file->memory.size() - 1]) / block_size;
+
+		while (TD_list->max < location) {
+			TD_list = TD_list->next;
+		}
+
+		if (location == TD_list->min) {
+			if (TD_list->prev != NULL) {
+				TD_list->prev->max += 1;
+				TD_list->min += 1;
+				if (TD_list->min == TD_list->max) {
+					TD_list->prev->next = TD_list->next;
+					if (TD_list->next != NULL) {
+						TD_list->next->prev = TD_list->prev;
+					}
+					delete TD_list;
+				}
+			}
+
+			else {
+				disk_list* ND_block = new disk_list;
+				ND_block->min = 1;
+				ND_block->max = TD_list->max;
+				ND_block->used = true;
+				ND_block->next = TD_list->next;
+				ND_block->prev = TD_list;
+
+				TD_list->max = 0;
+				TD_list->next = ND_block;
+				TD_list->used = false;
+
+			}
+		}
+
+		else if (location == TD_list->max) {
+			if (TD_list->next != NULL) {
+				TD_list->next->min -= 1;
+				TD_list->max -= 1;
+				if (TD_list->min == TD_list->max) {
+					TD_list->next->prev = TD_list->prev;
+					if (TD_list->prev != NULL) {
+						TD_list->prev->next = TD_list->next;
+					}
+					else {
+						disk = TD_list->next;
+					}
+					delete TD_list;
+				}
+			}
+
+			else {
+				disk_list* ND_block = new disk_list;
+				ND_block->min = (disk_size / block_size) - 1;
+				ND_block->max = ND_block->max;
+				ND_block->used = false;
+				ND_block->next = NULL;
+				ND_block->prev = TD_list;
+
+				TD_list->max = ND_block->min - 1;
+				TD_list->next = ND_block;
+
+			}
+		}
+
+		else {
+			disk_list* ND_block1 = new disk_list;
+			ND_block1->min = location;
+			ND_block1->max = location;
+			ND_block1->used = false;
+			ND_block1->prev = TD_list;
+
+			disk_list* ND_block2 = new disk_list;
+			ND_block2->min = location + 1;
+			ND_block2->max = TD_list->max;
+			ND_block2->used = true;
+			ND_block2->prev = ND_block1;
+
+			ND_block1->next = ND_block2;
+
+			ND_block2->next = TD_list->next;
+
+			TD_list->max = location - 1;
+			if (TD_list->next != NULL) {
+				TD_list->next->prev = ND_block2;
+			}
+			TD_list->next = ND_block1;
+		}
+
+
+		file->memory.pop_back();
+	}
+
+	file->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
 }
 
-void delete_node(tree* node){
-	/*int location = -1;
-	for (int i=0; i<cur_dir->branches.size(); ++i) {
-		if (cur_dir->branches[i]->name == file_name){
-			int location = i;
-		}
-	}
-	if (location = -1){
-		cerr << "Error: File " << file_name << " does not exist" << endl;
-		return;
+void delete_node(tree* node, int disk_size, int block_size){
+	if (node->file) {
+		remove_file(node, node->memory.size(), disk_size, block_size);
 	}
 
-	cur_dir->branches.erase(i);
-	cur_dir->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());*/
+	for (int i=0; i<cur_dir->branches.size(); ++i) {
+		if (cur_dir->branches[i]->name == node->name) {
+			delete node;
+			cur_dir->branches.erase(cur_dir->branches.begin() + i);
+			break;
+		}
+	}
+
 }
 
 void dir_tree() {
@@ -265,7 +362,18 @@ void print_files() {
 }
 
 void print_disk() {
-	
+
+}
+
+void delete_tree(tree* t) {
+	if (t->branches.size() == 0) {
+		delete t;
+	}
+	else {
+		for (int i=0; i<t->branches.size(); ++i) {
+			delete_tree(t->branches[i]);
+		}
+	}
 }
 
 int main(int argc, char** argv) {
@@ -647,7 +755,15 @@ int main(int argc, char** argv) {
 
 			int f_size = (int)ceil((double)stoi(command) / block_size);
 
-			remove_file(temp_tree, f_size, block_size);
+			if (f_size < 0) {
+				cout << "Error: invalid removal size" << endl;
+			}
+
+			if (f_size > temp_tree->memory.size()) {
+				f_size = temp_tree->memory.size();
+			}
+
+			remove_file(temp_tree, f_size, disk_size, block_size);
 		}
 		
 		else if (regex_match(command, del)) {
@@ -673,7 +789,7 @@ int main(int argc, char** argv) {
 					cout << "Error: directory contains files" << endl;
 				}
 			}
-			delete_node(temp_tree);
+			delete_node(temp_tree, disk_size, block_size);
 		}
 		
 		else if (regex_match(command, ex)) {
@@ -696,6 +812,17 @@ int main(int argc, char** argv) {
 			cout << "Invalid command: " << command << endl;
 		}
 	}
+
+	disk_list* temp_disk = disk->next;
+	while(disk != NULL) {
+		delete disk;
+		disk = temp_disk;
+		if (temp_disk != NULL) {
+			temp_disk = temp_disk->next;
+		}
+	}
+
+	delete_tree(root);
 
 	ifs.close();
 	ifs2.close();
