@@ -1,37 +1,23 @@
-# Name of your program:
-NAME=assign3
+# Output filename here
+NAME = assign3
 
-# List of all .cpp source code files included in your program (separated by spaces):
-SRC=file_system.cpp
+# CPP source files
+SRC = file_system.cpp
 
-
-
-SRCPATH=./
-OBJ=$(addprefix $(SRCPATH), $(SRC:.cpp=.o))
-
-RM=rm -f
-INCPATH=includes
-CPPFLAGS+= -I $(INCPATH)
-
+OBJ = $(SRC:.cpp=.o)
+CXX = g++ $(CXXFLAGS)
+CXXFLAGS = -g --std=c++11
 
 all: $(OBJ)
-	g++ -std=c++11 $(OBJ) -o $(NAME)
+	$(CXX) $(OBJ) -o $(NAME)
 
 clean:
 	-$(RM) *~
-	-$(RM) *#*
-	-$(RM) *swp
+	-$(RM) \#*
+	-$(RM) *.o
 	-$(RM) *.core
-	-$(RM) *.stackdump
-	-$(RM) $(SRCPATH)*.o
-	-$(RM) $(SRCPATH)*.obj
-	-$(RM) $(SRCPATH)*~
-	-$(RM) $(SRCPATH)*#*
-	-$(RM) $(SRCPATH)*swp
-	-$(RM) $(SRCPATH)*.core
-	-$(RM) $(SRCPATH)*.stackdump
 
-fclean: clean
+fclean:	clean
 	-$(RM) $(NAME)
 
 re: fclean all

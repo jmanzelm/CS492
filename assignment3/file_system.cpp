@@ -31,13 +31,12 @@ typedef struct tree{
 	// true if a file, false if a directory
 	bool file;
 	string name;
+	// Uses the chrono library for creating timestamps
+	time_t timestamp;
+	// below only used if file
 	// list of memory locations if it is a file
 	vector<long> memory;
-	// below only used if file
 	int size;
-	// I was looking at the chrono library for creating timestamps:
-	// http://en.cppreference.com/w/cpp/chrono
-	time_t timestamp;
 	// vector of pointers to all other nodes
 	// is empty if file or empty directory
 	vector<tree*> branches;
@@ -56,6 +55,7 @@ vector<string> path;
 // says what memory locations are in use
 disk_list* disk;
 
+// Changes the current directory
 void change_dir(string new_dir){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		if (cur_dir->branches[i]->name == new_dir) {
@@ -67,6 +67,7 @@ void change_dir(string new_dir){
 	cerr << "Error: No such directory " << new_dir << endl;	
 }
 
+// Changes the directory back one if possible
 void change_dir_parent(){
 	if(cur_dir == root){
 		return;
@@ -83,12 +84,14 @@ void change_dir_parent(){
 	}
 }
 
+// Lists all files and directories in the current directory
 void list_dir(){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		cout << cur_dir->branches[i]->name << " ";
 	}
 }
 
+// Makes a new directory
 void make_dir(string new_dir){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		if (cur_dir->branches[i]->name == new_dir) {
@@ -103,6 +106,7 @@ void make_dir(string new_dir){
 	cur_dir->branches.push_back(temp);
 }
 
+// Makes a new file
 void create_file(string new_file){
 	for (int i=0; i<cur_dir->branches.size(); ++i) {
 		if (cur_dir->branches[i]->name == new_file) {
@@ -118,6 +122,7 @@ void create_file(string new_file){
 	cur_dir->branches.push_back(temp);
 }
 
+// Adds memory to a file
 void append_file(tree* file, int file_size, int block_size){
 	disk_list* TD_list = disk;
 	disk_list* t;
@@ -237,6 +242,7 @@ void append_file(tree* file, int file_size, int block_size){
 	file->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
 }
 
+// Removes memory from a file
 void remove_file(tree* file, int file_size, int disk_size, int block_size){
 	disk_list* TD_list = disk;
 	disk_list* t;
@@ -339,6 +345,7 @@ void remove_file(tree* file, int file_size, int disk_size, int block_size){
 	file->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
 }
 
+// Removes all of a file's memory and deletes it
 void delete_node(tree* node, int disk_size, int block_size){
 	if (node->file) {
 		remove_file(node, node->memory.size(), disk_size, block_size);
@@ -358,14 +365,14 @@ void delete_node(tree* node, int disk_size, int block_size){
 void dir_tree() {
 	queue<tree*> Q;
 	vector<tree*> children;
-	string path = "";
+	string p = "";
 	tree* dir = new tree;
 	Q.push(root);
 
 	while(!Q.empty()){
 		dir = Q.front();
 		if(dir->file == false){
-			path += dir->name + " ";
+			p += dir->name + " ";
 
 			Q.pop();
 
@@ -384,7 +391,7 @@ void dir_tree() {
 		}
 
 	}
-	cout << path << endl;
+	cout << p << endl;
 }
 
 //Prints every file's attributes in the root directory
@@ -431,6 +438,7 @@ void print_files() {
 	}
 }
 
+// Prints the allocation of memory on the disk
 void print_disk() {
 	disk_list* TD_list = disk;
 	vector<bool> bools;
@@ -458,7 +466,7 @@ void print_disk() {
 		}
 		string tempstring = to_string(temp);
 		string counterstring = to_string(counter);
-		cout << "In use: " + tempstring +"-" + counterstring;
+		cout << "In use: " + tempstring + "-" + counterstring;
 		while(bools[i] = false){
 			if(bools[i-1] == true){
 				temp = counter;
@@ -469,12 +477,14 @@ void print_disk() {
 		frag = frag + (counter - temp) + 1;
 		counterstring = to_string(counter);
 		tempstring = to_string(temp);
-		cout << "Free: " + tempstring +"-" + counterstring;
+		cout << "Free: " + tempstring + "-" + counterstring;
 	}
 	string fragstring = to_string(frag);
 	cout << "fragmentation: " + fragstring + " bytes";
 }
 
+// Deletes a tree struct recursively
+// Used for deallocating the root directory
 void delete_tree(tree* t) {
 	if (t->branches.size() == 0) {
 		delete t;
@@ -523,6 +533,10 @@ int main(int argc, char** argv) {
 	}
 	iss.clear();
 
+	// Close file streams
+	ifs.close();
+	ifs2.close();
+
 	iss.str(argv[3]);
 	if (!(iss >> disk_size) || disk_size < 1) {
 		cerr << "Error: Invalid disk size '" << argv[3] << "'." << endl;
@@ -537,14 +551,17 @@ int main(int argc, char** argv) {
 	}
 	iss.clear();
 
+	// Allocate the root
 	root = new tree;
 	root->file = false;
 	root->name = "/";
 	root->size = 0;
 	root->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
 
+	// Set the current directory to the root
 	cur_dir = root;
 
+	// Allocate a new disk list
 	disk = new disk_list;
 	disk->min = 0;
 	disk->max = (disk_size/block_size) - 1;
@@ -557,7 +574,7 @@ int main(int argc, char** argv) {
 	int pos;
 	bool found = false;
 	getline(ifs2, line);
-	// add directories into tree
+	// Add directories into tree
 	while (getline(ifs2, line)) {
 		line.erase(0,2);
 		while (pos = line.find("/") != string::npos) {
@@ -595,6 +612,7 @@ int main(int argc, char** argv) {
 		cur_dir = root;
 	}
 
+	// Add files into memory
 	int file_size;
 	while (getline(ifs, line)) {
 		// erase duplicate spaces
@@ -620,6 +638,7 @@ int main(int argc, char** argv) {
 		pos = line.find("./");
 		line.erase(0, pos+2);
 
+		// Grab path
 		while (pos = line.find("/") != string::npos) {
 			dir = line.substr(0, line.find("/"));
 			found = false;
@@ -768,8 +787,9 @@ int main(int argc, char** argv) {
 		cur_dir = root;
 	}
 
+	// Regex expressions for checking input
 	regex cd("cd *");
-	regex cd_back("cd\.\.");
+	regex cd_back("cd\\.\\.");
 	regex ls("ls");
 	regex mkdir("mkdir *");
 	regex create("create *");
@@ -791,29 +811,35 @@ int main(int argc, char** argv) {
 
 		cin >> command;
 
+		// Change directory
 		if (regex_match(command, cd)) {
 			command.erase(0,3);
 			change_dir(command);
 		}
 		
+		// Change directory back one
 		else if (regex_match(command, cd_back)) {
 			change_dir_parent();
 		}
 		
+		// List all files  in the current directory
 		else if (regex_match(command, ls)) {
 			list_dir();
 		}
 		
+		// Make a new directory
 		else if (regex_match(command, mkdir)) {
 			command.erase(0,6);
 			make_dir(command);
 		}
 		
+		// Create a new file
 		else if (regex_match(command, create)) {
 			command.erase(0,7);
 			create_file(command);
 		}
 		
+		// Append bytes to a file
 		else if (regex_match(command, app)) {
 			command.erase(0,7);
 			bool found = false;
@@ -841,6 +867,7 @@ int main(int argc, char** argv) {
 			append_file(temp_tree, f_size, block_size);
 		}
 		
+		// Remove bytes from a file
 		else if (regex_match(command, rem)) {
 			command.erase(0,7);
 			bool found = false;
@@ -876,6 +903,7 @@ int main(int argc, char** argv) {
 			remove_file(temp_tree, f_size, disk_size, block_size);
 		}
 		
+		// Delete a directory or file
 		else if (regex_match(command, del)) {
 			command.erase(0,7);
 
@@ -902,18 +930,22 @@ int main(int argc, char** argv) {
 			delete_node(temp_tree, disk_size, block_size);
 		}
 		
+		// Exit the program
 		else if (regex_match(command, ex)) {
 			break;
 		}
 		
+		// Print out the directory tree
 		else if (regex_match(command, dirrect)) {
 			dir_tree();
 		}
 		
+		// Print all file data in breadth first search order
 		else if (regex_match(command, prfiles)) {
 			print_files();
 		}
 		
+		// Print the disk data
 		else if (regex_match(command, prdisk)) {
 			print_disk();
 		}
@@ -923,6 +955,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// Delete data structes
 	disk_list* temp_disk = disk->next;
 	while(disk != NULL) {
 		delete disk;
@@ -931,10 +964,7 @@ int main(int argc, char** argv) {
 			temp_disk = temp_disk->next;
 		}
 	}
-
 	delete_tree(root);
 
-	ifs.close();
-	ifs2.close();
 	return 0;
 }
